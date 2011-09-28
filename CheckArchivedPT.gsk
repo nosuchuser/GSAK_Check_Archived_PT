@@ -1,0 +1,75 @@
+#*******************************************
+# MacVersion = 1.2
+# MacDescription = Mark all PT archived caches as archived, based on geopt.org IAAN (http://www.geopt.org/all-about-numbers.html) stats
+# MacAuthor = BTRODRIGUES (bruno.tiago.rodrigues AT gmail.com)
+# MacFileName = CheckArchivedPT.gsk
+# MacUrl = http://www.geopt.org/component/option,com_jfusion/Itemid,53/f,17/jfile,viewtopic.php/t,1496/
+#*******************************************
+
+                                   #                                    
+                                   #                                    
+  ######  #####   #####  ######   ####            #####  ### ##   ######
+ #    #  #     # #     #  #    #   #             #     #   ##  # #    # 
+ #    #  ####### #     #  #    #   #             #     #   #     #    # 
+ #    #  #       #     #  #    #   #             #     #   #     #    # 
+  #####  #     # #     #  #    #   #  #          #     #   #      ##### 
+      #   #####   #####   #####     ##      #     #####  #####        # 
+      #                   #                                           # 
+  ####                   ###                                      ####  
+
+
+#*******************************************
+# Version history
+#
+# 1.0 (2011.01.25) 
+#	» First release. Some stuff left to clean up. Happy birthday, mom!
+# 1.1 (2011.01.25)
+#	» Caches updated by macro get UserFlag checked after being updated. Suggested by almeidara. Thx!
+# 1.2 (2011.01.27)
+#	» New and faster UserFlag manipulation mechanism
+#	» User filter is now retained after macro is run
+#	» Validates if user is properly connected to the interwebs.
+#	» Number of SQL operations has been drastically reduced
+#	» Data collection done directly from the source (geopt.org rocks)
+
+#*******************************************
+
+$data = GetUrl("http://geopt.sytes.net/Geopt_Statistics/_caches_archived_PT.aspx","Getting geopt.org data...")
+
+if len($data)=0
+	MsgOK msg="Could not connect to geopt.org to retrieve data $_NewLine $_NewLine Problems with your internet connection?"
+	return
+endif
+
+$SavedFilter=SaveFilter()
+USERFLAG type=clear range=all
+
+$res=sqlite("sql",$_SqlGrid, "sqlget=yes")
+$c = 1
+$a = 0
+$code = Alltrim(Extract($data, " ", $c))
+WHILE Len($code)>0
+	$bef=sqlite("sql","select code,status from caches where code='$code'")
+	if Len($bef)>0 
+		if Right($bef,1)<>"X"
+			$res=sqlite("sql","update caches set status='X',userflag='1' where code='$code'")	
+			$a=$a+1
+		endif
+	endif
+	$c=$c+1
+	$code=Alltrim(Extract($data," ",$c))
+ENDWHILE
+
+$status="Finished OK. " + $_NewLine + "$c archived caches found on IAAN. "
+$status=$status+$_NewLine+" $a new archived cache(s) found and updated. "
+
+MSGOK Msg=$status
+
+SqlGetClose
+IF RestoreFilter($SavedFilter,TRUE) = 0
+    Pause Msg="No records match your restored filter. Filter has been canceled"
+ENDIF 
+
+GOTO Position=Top
+
+
